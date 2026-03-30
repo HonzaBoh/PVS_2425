@@ -15,7 +15,7 @@ public class WorldBrowse extends JFrame {
 
     private static final String USER = "pvs";
     private static final String PASSWORD = "infis";
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/world";
+    private static final String DB_URL = "jdbc:mysql://10.1.12.1:3306/world";
 
     public WorldBrowse() {
         setSize(700, 350);

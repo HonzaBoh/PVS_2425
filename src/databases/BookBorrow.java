@@ -4,16 +4,14 @@ import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.sql.*;
 
 public class BookBorrow extends JFrame {
 
     // ===== DB SETTINGS =====
-    private static final String DB_URL = "jdbc:mysql://YOUR_SERVER_IP:3306/bookdb";
-    private static final String DB_USER = "YOUR_DB_USER";
-    private static final String DB_PASSWORD = "YOUR_DB_PASSWORD";
+    private static final String DB_URL = "jdbc:mysql://10.1.12.1:3306/bookdb";
+    private static final String DB_USER = "pvs";
+    private static final String DB_PASSWORD = "infis";
 
     // ===== GUI COMPONENTS =====
     private JTextField nickField;
@@ -40,6 +38,7 @@ public class BookBorrow extends JFrame {
     public BookBorrow() {
         super("Book Borrowing - Skeleton");
         initGui();
+        refreshBooks();
     }
 
     private void initGui() {
@@ -162,8 +161,35 @@ public class BookBorrow extends JFrame {
     }
 
     private void refreshBooks() {
-        setStatus("TODO: Load books from database.");
-        // TODO: uprava
+        tableModel.setRowCount(0);
+
+        String sql = """
+                SELECT id, title, author, year, borrowed_by
+                FROM book
+                ORDER BY title
+                """;
+        try (Connection conn = createConnection();
+             PreparedStatement ps = conn.prepareCall(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                String borrowedBy = rs.getString("borrowed_by");
+                String status = (borrowedBy == null || borrowedBy.isBlank()) ? "Free" : "Borrowed";
+
+                tableModel.addRow(new Object[]{
+                        rs.getInt("id"),
+                        rs.getString("title"),
+                        rs.getString("author"),
+                        rs.getInt("year"),
+                        status
+                });
+
+            }
+            setStatus("Loaded: " + tableModel.getRowCount() + " books");
+
+        } catch (SQLException e) {
+            System.out.println("Chyba pri sql: " + e.getMessage());
+        }
     }
 
     private void onRowSelected(ListSelectionEvent e) {
@@ -183,8 +209,34 @@ public class BookBorrow extends JFrame {
     }
 
     private void loadBookDetail(int bookId) {
-        setStatus("TODO: Load detail for book id " + bookId);
-        // TODO: nacteni detailu ke knizce
+        String sql = """
+                SELECT id, title, author, year, borrowed_by
+                FROM book
+                WHERE id = ?
+                """;
+        try (Connection conn = createConnection();
+             PreparedStatement ps = conn.prepareCall(sql)) {
+            ps.setInt(1, bookId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    idField.setText(String.valueOf(rs.getInt("id")));
+                    titleField.setText(rs.getString("title"));
+                    authorField.setText(rs.getString("author"));
+                    yearField.setText(String.valueOf(rs.getInt("year")));
+
+                    String borrowedBy = rs.getString("borrowed_by");
+                    borrowedByField.setText((borrowedBy == null) ? "" : borrowedBy);
+
+                    setStatus("Selected: " + rs.getString("title"));
+                } else {
+                    clearDetailFields();
+                    setStatus("Book not found!");
+                }
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL error: " + e.getMessage());
+        }
     }
 
     private void borrowSelectedBook() {
@@ -203,8 +255,32 @@ public class BookBorrow extends JFrame {
 
         int bookId = (int) tableModel.getValueAt(selectedRow, 0);
 
-        setStatus("TODO: Borrow book with id " + bookId);
-        // TODO: dodelani pujcky
+        String sql = """
+                UPDATE book
+                SET borrowed_by = ?
+                WHERE id = ? AND borrowed_by IS NULL
+                """;
+
+        try (Connection conn = createConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, currentNick);
+            ps.setInt(2, bookId);
+
+            int success = ps.executeUpdate();
+
+            if (success == 1){
+                setStatus("Book borrowed successfully.");
+                refreshBooks();
+                JOptionPane.showMessageDialog(this, "Book borrowed successfully!");
+            } else {
+                setStatus("Book already borrowed");
+                refreshBooks();
+                JOptionPane.showMessageDialog(this, "Book already borrowed!");
+            }
+        } catch (SQLException e) {
+            System.out.println("SQL error: " + e.getMessage());
+        }
     }
 
     private void clearDetailFields() {
