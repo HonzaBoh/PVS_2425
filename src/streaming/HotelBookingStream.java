@@ -12,14 +12,21 @@ public class HotelBookingStream {
         bookings.forEach(System.out::println);
 
         //Vsechny bookings pres webovky
+        List<HotelBooking> webBookings = bookings.stream().filter(b -> b.bookingChannel.equals("Website"));
 
         //vypiste prumernou cenu za booking u 'G002'
+        Double avgPrice = (Double) bookings.stream().filter(b -> b.guestId.equals("G002")).mapToDouble(HotelBooking::getPrice).average().orElse(0);
 
         //vypiste bookingy pres telefon serazene dle ceny
+        List<HotelBooking> telBookings = bookings.stream().filter(b -> b.bookingChannel.equals("Phone")).sorted((b1,b2) -> b1.price.compareTo(b2.price));
+        telBookings.forEach(System::println);
 
         //Mapa bookingu dle mest
+        Map<String, HotelBooking> cityGroups = bookings.stream().collect(Collectors.groupingBy(HotelBooking::getCity));
 
         //Mapa Status: pocet objednavek u kazdeho statustu (Mapa<Status, count>
+        Map<String, int> statuses = bookings.stream().collect(Collectors.groupingBy(HotelBooking::getStatus), Collectors.counting());
+        
     }
 }
 
